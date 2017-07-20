@@ -12,10 +12,10 @@ lazy val root = (project in file(".")).
     )),
     name := "KafkaAgents",
     libraryDependencies += scalaTest % Test,
-    libraryDependencies += "org.apache.spark" %% "spark-core" % sparkVersion % "provided",
-    libraryDependencies += "org.apache.spark" %% "spark-streaming" % sparkVersion % "provided",
+    libraryDependencies += "org.apache.spark" %% "spark-core" % sparkVersion, // % "provided",
+    libraryDependencies += "org.apache.spark" %% "spark-streaming" % sparkVersion, // % "provided",
     libraryDependencies +=  "org.apache.spark" %% "spark-streaming-kafka-0-8" % sparkVersion,
-    libraryDependencies += "org.apache.spark" %% "spark-sql" % sparkVersion % "provided"
+    libraryDependencies += "org.apache.spark" %% "spark-sql" % sparkVersion // % "provided"
 //    libraryDependencies += "org.apache.spark" %% "spark-streaming-kinesis-asl" % sparkVersion,
   )
 
