@@ -64,7 +64,7 @@ object MyKafkaConsumer {
     topCounts60.foreachRDD(rdd => {
       val topList = rdd.take(10)
       println("\nPopular sites in last 60 seconds (%s total):".format(rdd.count()))
-      topList.foreach { case (count, tag) => println("%s (%s sites)".format(tag, count)) }
+      topList.foreach { case (count, tag) => println("%s (%s visits)".format(tag, count)) }
     })
 //    topCounts60.saveAsTextFiles("result")
 
