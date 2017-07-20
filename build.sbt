@@ -1,6 +1,8 @@
 import Dependencies._
 import sbt.Keys.libraryDependencies
 
+val sparkVersion = "2.2.0"
+
 lazy val root = (project in file(".")).
   settings(
     inThisBuild(List(
@@ -10,11 +12,11 @@ lazy val root = (project in file(".")).
     )),
     name := "KafkaAgents",
     libraryDependencies += scalaTest % Test,
-    libraryDependencies += "org.apache.spark" %% "spark-core" % "2.1.0",
-    libraryDependencies += "org.apache.spark" %% "spark-streaming" % "2.1.0",
-    libraryDependencies += "org.apache.spark" %% "spark-streaming-kafka-0-8" % "2.1.0",
-    libraryDependencies += "org.apache.spark" %% "spark-sql" % "2.1.0"
-    //libraryDependencies += "org.apache.spark" %% "spark-streaming-kinesis-asl" % "2.1.0",
+    libraryDependencies += "org.apache.spark" %% "spark-core" % sparkVersion % "provided",
+    libraryDependencies += "org.apache.spark" %% "spark-streaming" % sparkVersion % "provided",
+    libraryDependencies +=  "org.apache.spark" %% "spark-streaming-kafka-0-8" % sparkVersion,
+    libraryDependencies += "org.apache.spark" %% "spark-sql" % sparkVersion % "provided"
+//    libraryDependencies += "org.apache.spark" %% "spark-streaming-kinesis-asl" % sparkVersion,
   )
 
 assemblyMergeStrategy in assembly := {
