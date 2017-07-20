@@ -1,7 +1,7 @@
 import Dependencies._
 import sbt.Keys.libraryDependencies
 
-val sparkVersion = "2.2.0"
+val sparkVersion = "2.0.0"
 
 lazy val root = (project in file(".")).
   settings(
@@ -12,10 +12,10 @@ lazy val root = (project in file(".")).
     )),
     name := "KafkaAgents",
     libraryDependencies += scalaTest % Test,
-    libraryDependencies += "org.apache.spark" %% "spark-core" % sparkVersion, // % "provided",
-    libraryDependencies += "org.apache.spark" %% "spark-streaming" % sparkVersion, // % "provided",
-    libraryDependencies +=  "org.apache.spark" %% "spark-streaming-kafka-0-8" % sparkVersion,
-    libraryDependencies += "org.apache.spark" %% "spark-sql" % sparkVersion // % "provided"
+    libraryDependencies += "org.apache.spark" %% "spark-core" % sparkVersion,
+    libraryDependencies += "org.apache.spark" %% "spark-streaming" % sparkVersion,
+    libraryDependencies += "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
+    libraryDependencies += "org.apache.spark" %% "spark-streaming-kafka-0-8" % sparkVersion
 //    libraryDependencies += "org.apache.spark" %% "spark-streaming-kinesis-asl" % sparkVersion,
   )
 
@@ -41,6 +41,6 @@ assemblyMergeStrategy in assembly := {
 }
 
 // define entry class
-mainClass in assembly := Some("producer.MyKafkaProducer")
+mainClass in assembly := Some("consumer.MyKafkaConsumer")
 
-assemblyJarName in assembly := "producer.jar"
+assemblyJarName in assembly := "consumer.jar"
