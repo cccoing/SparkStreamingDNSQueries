@@ -1,18 +1,34 @@
 package producer
 
+import java.io.ByteArrayOutputStream
 import java.util
+
 import sys.process._
 import scala.collection.mutable.ListBuffer
+import scala.io.Source
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig, ProducerRecord}
-
+import org.apache.log4j.{Level, Logger}
+import org.apache.avro.Schema
+import org.apache.avro.Schema.Parser
+import org.apache.avro.generic.GenericData
+import org.apache.avro.generic.GenericRecord
+import org.apache.avro.io.{BinaryEncoder, EncoderFactory}
+import org.apache.avro.specific.SpecificDatumWriter
 
 object MyKafkaProducer {
 
   def main(args: Array[String]) {
     println(">>> Starting Kafka Producer...")
 
+    // log settings
+    Logger.getLogger("org").setLevel(Level.ERROR)
+    Logger.getLogger("akka").setLevel(Level.ERROR)
+
     if (args.length < 5) {
-      System.err.println("Usage: KafkaProducer <metadataBrokerList> <topic> <minBatchSize> <messagesPerSec> <wordsPerMessage>")
+      System.err.println(
+        s"""
+          |Usage: KafkaProducer <metadataBrokerList> <topic> <minBatchSize> <messagesPerSec> <wordsPerMessage>
+        """.stripMargin)
       System.exit(1)
     }
 
@@ -25,18 +41,30 @@ object MyKafkaProducer {
 
     val Array(brokers, topic, minBatchSize, messagesPerSec, wordsPerMessage) = args
 
+//    // Zookeeper connection properties
+//    val props = new Properties()
+//
+//    props.put("bootstrap.servers", brokers)
+//    props.put("key.serializer", "kafka.serializer.DefaultEncoder")
+//    props.put("value.serializer", "kafka.serializer.DefaultEncoder")
+//    props.put("client.id", UUID.randomUUID().toString)
+
     // Zookeeper connection properties
     val props = new util.HashMap[String, Object]()
     props.put(ProducerConfig.LINGER_MS_CONFIG, "1")
     props.put(ProducerConfig.RETRIES_CONFIG, "2")
-    props.put(ProducerConfig.BLOCK_ON_BUFFER_FULL_CONFIG, "true")
     props.put(ProducerConfig.ACKS_CONFIG, "all")
-
+    props.put(ProducerConfig.CLIENT_ID_CONFIG, util.UUID.randomUUID().toString)
     props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers)
-    props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
-    props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
+    props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.ByteArraySerializer")
+    props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.ByteArraySerializer")
 
-    val producer = new KafkaProducer[String, String](props)
+    val producer = new KafkaProducer[String, Array[Byte]](props)
+
+//    val producer = new Producer[String, Array[Byte]](new ProducerConfig(props))
+
+    //Read avro schema file and
+    val schema: Schema = new Parser().parse(Source.fromURL(getClass.getResource("/schema.avsc")).mkString)
 
     // Send some messages
     while (true) {
@@ -53,11 +81,32 @@ object MyKafkaProducer {
         i += 1
 
         if (i % wordsPerMessage.toInt == 0 || i == batch.length) {
-          val message = new ProducerRecord[String, String](topic, null, str.toList.mkString(" "))
-          producer.send(message)
+          // Create avro generic record object
+          val record: GenericRecord = new GenericData.Record(schema)
+
+          //Put data in that generic record
+          val format = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssX")
+          val datetime = format.format(new java.util.Date())
+          record.put("batch_id", java.util.UUID.randomUUID.toString)
+          record.put("sites", str.toList.mkString(" "))
+          record.put("timestamp", datetime)
+
+          // Serialize generic record into byte array
+          val writer = new SpecificDatumWriter[GenericRecord](schema)
+          val out = new ByteArrayOutputStream()
+          val encoder: BinaryEncoder = EncoderFactory.get().binaryEncoder(out, null)
+          writer.write(record, encoder)
+          encoder.flush()
+          out.close()
+          val serializedBytes: Array[Byte] = out.toByteArray
+
+          // send message
+          val queueMessage = new ProducerRecord[String, Array[Byte]](topic, serializedBytes)
+          producer.send(queueMessage)
+
           str.clear()
 
-          println(s"Sent message: $message")
+          println(s"Sent message: $queueMessage")
           Thread.sleep(messagesPerSec.toInt * 1000)
         }
       }
