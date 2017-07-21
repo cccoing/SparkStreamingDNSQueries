@@ -16,8 +16,7 @@ lazy val root = (project in file(".")).
     libraryDependencies += "org.apache.spark" %% "spark-streaming" % sparkVersion,
     libraryDependencies += "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
     libraryDependencies += "org.apache.spark" %% "spark-streaming-kafka-0-8" % sparkVersion,
-    libraryDependencies += "org.apache.avro"  %  "avro"  %  "1.7.7",
-    libraryDependencies += "io.confluent" % "kafka-avro-serializer" % "3.0.0"
+    libraryDependencies += "org.apache.avro"  %  "avro"  %  "1.7.7"
 //    libraryDependencies += "org.apache.spark" %% "spark-streaming-kinesis-asl" % sparkVersion,
   )
 
@@ -42,12 +41,9 @@ assemblyMergeStrategy in assembly := {
     oldStrategy(x)
 }
 
-resolvers ++= Seq(
-  Resolver.sonatypeRepo("public"),
-  "Confluent Maven Repo" at "http://packages.confluent.io/maven/"
-)
-
 // define entry class
 mainClass in assembly := Some("consumer.MyKafkaConsumer")
 
 assemblyJarName in assembly := "consumer.jar"
+
+cancelable in Global := true

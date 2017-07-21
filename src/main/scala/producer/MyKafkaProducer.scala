@@ -17,12 +17,13 @@ import org.apache.avro.specific.SpecificDatumWriter
 
 object MyKafkaProducer {
 
+  // log settings
+  Logger.getLogger("org").setLevel(Level.ERROR)
+  Logger.getLogger("akka").setLevel(Level.ERROR)
+  Logger.getLogger("spark").setLevel(Level.ERROR)
+
   def main(args: Array[String]) {
     println(">>> Starting Kafka Producer...")
-
-    // log settings
-    Logger.getLogger("org").setLevel(Level.ERROR)
-    Logger.getLogger("akka").setLevel(Level.ERROR)
 
     if (args.length < 5) {
       System.err.println(
@@ -41,14 +42,6 @@ object MyKafkaProducer {
 
     val Array(brokers, topic, minBatchSize, messagesPerSec, wordsPerMessage) = args
 
-//    // Zookeeper connection properties
-//    val props = new Properties()
-//
-//    props.put("bootstrap.servers", brokers)
-//    props.put("key.serializer", "kafka.serializer.DefaultEncoder")
-//    props.put("value.serializer", "kafka.serializer.DefaultEncoder")
-//    props.put("client.id", UUID.randomUUID().toString)
-
     // Zookeeper connection properties
     val props = new util.HashMap[String, Object]()
     props.put(ProducerConfig.LINGER_MS_CONFIG, "1")
@@ -56,8 +49,8 @@ object MyKafkaProducer {
     props.put(ProducerConfig.ACKS_CONFIG, "all")
     props.put(ProducerConfig.CLIENT_ID_CONFIG, util.UUID.randomUUID().toString)
     props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers)
+    props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
     props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.ByteArraySerializer")
-    props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.ByteArraySerializer")
 
     val producer = new KafkaProducer[String, Array[Byte]](props)
 
