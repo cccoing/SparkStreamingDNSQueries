@@ -4,16 +4,14 @@ import kafka.serializer.{DefaultDecoder, StringDecoder}
 import org.apache.spark.streaming._
 import org.apache.spark.streaming.kafka._
 import org.apache.spark.SparkConf
+import org.apache.spark.rdd.RDD
 import org.apache.log4j.{Level, Logger}
 
 import scala.io.Source
 import org.apache.avro.Schema
-import org.apache.avro.io.DatumReader
-import org.apache.avro.io.Decoder
 import org.apache.avro.specific.SpecificDatumReader
 import org.apache.avro.generic.GenericRecord
 import org.apache.avro.io.DecoderFactory
-
 
 /**
   * Consumes messages from one or more topics in Kafka and does wordcount.
@@ -32,11 +30,17 @@ import org.apache.avro.io.DecoderFactory
   * */
 object MyKafkaConsumer {
 
-  object Injection {
-    //reads avro schema file and Initializes schema
+  object AvroUtil
+  {
     val schemaString: String = Source.fromURL(getClass.getResource("/schema.avsc")).mkString
     val schema: Schema = new Schema.Parser().parse(schemaString)
-    val reader: DatumReader[GenericRecord] = new SpecificDatumReader[GenericRecord](schema)
+
+    def deserializeMessage(msg: Array[Byte]): GenericRecord = {
+      val reader: SpecificDatumReader[GenericRecord] = new SpecificDatumReader[GenericRecord](schema)
+      val decoder = DecoderFactory.get.binaryDecoder(msg, null)
+      val data: GenericRecord = reader.read(null, decoder)
+      data
+    }
   }
 
   // log settings
@@ -75,44 +79,46 @@ object MyKafkaConsumer {
     val topicsSet = topics.split(",").toSet
     val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers)
     val messages = KafkaUtils.createDirectStream[String, Array[Byte], StringDecoder, DefaultDecoder](
-      ssc, kafkaParams, topicsSet).map(_._2)
+      ssc, kafkaParams, topicsSet)
 
-    // Get lines
-    messages.foreachRDD(rdd => {
-      rdd.foreach({ avroRecord =>
+    // Start processing DStreams
+    val requestLines = messages.map(_._2)
 
-        // Deserialize and create generic record
-        val decoder: Decoder = DecoderFactory.get().binaryDecoder(avroRecord, null)
-        val data: GenericRecord = Injection.reader.read(null, decoder)
-        println(s">>> Got data: $data")
-//
-//        // Get words froms sites string
-//        val sites = List(data.get("sites").toString)
-//        val words = sites.flatMap(_.split(" ")).map(x => (x, 1L))
-//        println(words)
+    // DEBUG -- Prints all received data
+    //    requestLines.foreachRDD(rdd => {
+    //      rdd.foreach({ avroRecord =>
+    //        val data: GenericRecord = AvroUtil.deserializeMessage(avroRecord)
+    //
+    //        println(s">>> Got data: ${data.get("sites")}")
+    //
+    //        val sites: Seq[String] = data.get("sites").toString.split(" ")
+    //        val r = sites.flatMap(_.split(" ")).map(site => (site, 1))
+    //      })
+    //    })
 
+    val mappedSites = requestLines.transform {
+      rdd =>
+        val sitesRDD: RDD[String] = rdd.map { bytes => AvroUtil.deserializeMessage(bytes) }.map { genericRecord: GenericRecord => genericRecord.get("sites").toString }
+        sitesRDD.flatMap(_.split(" "))
+    }
 
-//        val words = sites.flatMap(_.split(" "))
-//
-        // get top visited sites in past 60 seconds
-//        val topCounts60 = words.reduceByKeyAndWindow(_ + _, Seconds(60))
-//          .map { case (topic, count) => (count, topic) }
-//          .transform(_.sortByKey(ascending = false))
-//        // topCounts60.print()  // DEBUG
-//
-//        // Print popular sites
-//        topCounts60.foreachRDD(rdd => {
-//          val topList = rdd.take(10)
-//          println("\nPopular sites in last 60 seconds (%s total):".format(rdd.count()))
-//          topList.foreach { case (count, tag) => println("%s (%s visits)".format(tag, count)) }
-//        })
-//        // topCounts60.saveAsTextFiles("result")
-//
-//
-//        lines.count().map(cnt => "Received " + cnt + " kafka messages.").print()
-      })
+    // get top visited sites in past 60 seconds
+    val topCounts60 = mappedSites.map(x => (x, 1L)).reduceByKeyAndWindow(_ + _, Seconds(60))
+      .map { case (topic, count) => (count, topic) }
+      .transform(_.sortByKey(ascending = false))
+
+    // Print popular sites
+    topCounts60.foreachRDD(rdd => {
+      val topList = rdd.take(10)
+      println(s"\nPopular sites in last 60 seconds (${rdd.count()} total):")
+      topList.foreach { case (count, tag) => println(s"$tag ($count visits)") }
+      println("\n")
     })
-    // Start the computation
+    // topCounts60.saveAsTextFiles("result")
+
+
+    requestLines.count().map(cnt => "Received " + cnt + " kafka messages.").print()
+
     ssc.start()
     ssc.awaitTermination()
   }
