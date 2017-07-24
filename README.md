@@ -24,3 +24,8 @@ java -jar target/scala-2.11/KafkaProducer-assembly-0.1.0-SNAPSHOT.jar <metadataB
 ```
 /app/kafka/kafka_2.12-0.11.0.0/bin/kafka-console-consumer.sh --bootstrap-server <kafka-broker-ip>:9092 --topic <your-topic> --from-beginning
 ```
+
+## References
+
+- https://spark.apache.org/docs/latest/streaming-kafka-0-10-integration.html
+- https://github.com/vijayaraj210/scribbles/tree/master/spark/spark-kafka
